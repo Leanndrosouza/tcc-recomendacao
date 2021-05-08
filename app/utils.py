@@ -41,6 +41,8 @@ def valid_params(request):
     value = request.args.get('value')
     rooms = request.args.get('rooms')
     area = request.args.get('area')
+    bathrooms = request.args.get('bathrooms')
+    garages = request.args.get('garages')
 
     if not value:
         return 'value is a required field'
@@ -60,6 +62,16 @@ def valid_params(request):
     if not is_int(area):
         return 'area must be a integer'
 
+    # OPTIONAL PARAMS
+
+    if bathrooms:
+        if not is_int(bathrooms):
+            return 'bathrooms must be a integer'
+
+    if garages:
+        if not is_int(garages):
+            return 'garages must be a integer'
+
     return None
 
 
@@ -76,22 +88,50 @@ def prepare_params(request):
     rooms = float(request.args.get('rooms'))  # int
     area = float(request.args.get('area'))  # int
 
-    return {"value": value, "rooms": rooms, "area": area}, None
+    params = {
+        "value": value,
+        "rooms": rooms,
+        "area": area
+    }
+
+    # OPTIONAL
+
+    bathrooms = request.args.get('bathrooms')
+    garages = request.args.get('garages')
+
+    if bathrooms:
+        bathrooms = float(bathrooms)
+        params["bathrooms"] = bathrooms
+
+    if garages:
+        garages = float(garages)
+        params["garages"] = garages
+
+    return params, None
 
 
 def load_properties():
-    df = pd.read_json("app/assets/olx.json", orient="records", convert_dates=False)
-    df = df.drop(["titulo", "link", "descricao", "created_at", "codigo"], axis=1)
-    df = pd.concat([df.drop(["_id", "data_publicacao", "caracteristicas"], axis=1), df['caracteristicas'].apply(pd.Series)], axis=1)
-    df = df.drop(["tipo", "cep", "municipio", "logradouro", "detalhes_do_imovel", "detalhes_do_condominio", "condominio", "iptu"], axis=1)
+    df = pd.read_json("app/assets/olx.json",
+                      orient="records", convert_dates=False)
+    df = df.drop(["link", "descricao",
+                 "created_at", "codigo"], axis=1)
+    df = pd.concat([df.drop(["_id", "data_publicacao", "caracteristicas"],
+                   axis=1), df['caracteristicas'].apply(pd.Series)], axis=1)
+    df = df.drop(["tipo", "cep", "municipio", "logradouro", "detalhes_do_imovel",
+                 "detalhes_do_condominio", "condominio", "iptu"], axis=1)
     df = df.dropna()
-    df = df.rename({'preco': 'value', 'quartos': 'rooms', 'area_util': 'area'}, axis=1)
+    df = df.rename({
+        'preco': 'value',
+        'quartos': 'rooms',
+        'area_util': 'area',
+        'banheiros': 'bathrooms',
+        'vagas_na_garagem': 'garages'
+    }, axis=1)
 
-    df['value'] = df['value'].apply(lambda x: re.sub('[^0-9]','', x))
-    df['value'] = df['value'].astype(float)
-    df['rooms'] = df['rooms'].apply(lambda x: re.sub('[^0-9]','', x))
-    df['rooms'] = df['rooms'].astype(float)
-    df['area'] = df['area'].apply(lambda x: re.sub('[^0-9]','', x))
-    df['area'] = df['area'].astype(float)
+    numbers_columns = ['value', 'rooms', 'area', 'bathrooms', 'garages']
+
+    for column in numbers_columns:
+        df[column] = df[column].apply(lambda x: re.sub('[^0-9]', '', x))
+        df[column] = df[column].astype(float)
 
     return df

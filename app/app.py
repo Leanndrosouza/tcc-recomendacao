@@ -15,14 +15,20 @@ def hello():
 
     df = load_properties()
 
-    weights = {'value': [1.0], 'rooms': [3.0], 'area': [0.5]}
+    weights = {
+        'value': [1.0],
+        'rooms': [1.0],
+        'area': [1.0],
+        'bathrooms': [1.0],
+        'garages': [1.0]
+    }
 
     sorted_values = mahalanobis_algorithm(df, params, weights)
 
     result = {}
     for index in range(6):
         aux = df.iloc[sorted_values.iloc[index].name].to_dict()
-        
+
         result.update({index: aux})
 
     return result
