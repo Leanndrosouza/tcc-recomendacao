@@ -6,6 +6,18 @@ import re
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
+AVAILABLE_DISTRICTS = ['Jabotiana', 'Atalaia', 'Salgado Filho', 'Lamarão', 'Grageru',
+                       'Luzia', 'Jardins', 'Farolândia', 'Coroa do Meio', 'Ponto Novo',
+                       'Suíssa', 'Centro', 'São Conrado', 'Inácio Barbosa', 'São José',
+                       'Zona de Expansão (Mosqueiro)', 'Treze de Julho',
+                       'Dezoito do Forte', 'Aeroporto', 'Zona de Expansão (Aruana)',
+                       'Siqueira Campos', 'Pereira Lobo', 'Jardim Centenário',
+                       'Santa Maria', 'Dom Luciano', 'Olaria', 'Santos Dumont', 'América',
+                       'Santo Antônio', 'Getúlio Vargas', 'Cirurgia', 'Industrial',
+                       "Porto D'Antas", '18 do Forte', 'José Conrado de Araújo',
+                       'Cidade Nova', 'Zona de Expansão (Robalo)', '13 De Julho',
+                       'Palestina', 'Soledade', 'Japãozinho']
+
 
 def mahalanobis_algorithm(df, request_dict, weights_dict):
     # handle data
@@ -41,8 +53,6 @@ def valid_params(request):
     value = request.args.get('value')
     rooms = request.args.get('rooms')
     area = request.args.get('area')
-    bathrooms = request.args.get('bathrooms')
-    garages = request.args.get('garages')
 
     if not value:
         return 'value is a required field'
@@ -64,6 +74,10 @@ def valid_params(request):
 
     # OPTIONAL PARAMS
 
+    bathrooms = request.args.get('bathrooms')
+    garages = request.args.get('garages')
+    district = request.args.get('district')
+
     if bathrooms:
         if not is_int(bathrooms):
             return 'bathrooms must be a integer'
@@ -71,6 +85,10 @@ def valid_params(request):
     if garages:
         if not is_int(garages):
             return 'garages must be a integer'
+    
+    if district:
+        if not district in AVAILABLE_DISTRICTS:
+            return 'district invalid'
 
     return None
 
@@ -98,6 +116,7 @@ def prepare_params(request):
 
     bathrooms = request.args.get('bathrooms')
     garages = request.args.get('garages')
+    district = request.args.get('district')
 
     if bathrooms:
         bathrooms = float(bathrooms)
@@ -107,11 +126,14 @@ def prepare_params(request):
         garages = float(garages)
         params["garages"] = garages
 
+    if district:
+        params["district"] = district
+
     return params, None
 
 
 def load_properties():
-    df = pd.read_json("app/assets/olx.json",
+    df = pd.read_json("app/assets/olx_location.json",
                       orient="records", convert_dates=False)
     df = df.drop(["link", "descricao",
                  "created_at", "codigo"], axis=1)

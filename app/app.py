@@ -20,7 +20,8 @@ def hello():
         'rooms': [1.0],
         'area': [1.0],
         'bathrooms': [1.0],
-        'garages': [1.0]
+        'garages': [1.0],
+        'district': [1.0]
     }
 
     sorted_values = mahalanobis_algorithm(df, params, weights)
