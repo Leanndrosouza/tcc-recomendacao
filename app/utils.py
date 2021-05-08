@@ -1,9 +1,11 @@
 import pandas as pd
 import numpy as np
 import logging
+import re
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
+
 
 def mahalanobis_algorithm(df, request_dict, weights_dict):
     # handle data
@@ -11,7 +13,7 @@ def mahalanobis_algorithm(df, request_dict, weights_dict):
     request_values = list(request_dict.values())
 
     # tranform weights dict in Dataframe
-    weights = pd.DataFrame(data=dict_weights)
+    weights = pd.DataFrame(data=weights_dict)
 
     # prepare data
     data_arr = df[request_keys].values
@@ -60,9 +62,36 @@ def valid_params(request):
 
     return None
 
+
 def is_int(x):
     try:
         int(x)
         return True
     except:
         return False
+
+
+def prepare_params(request):
+    value = float(request.args.get('value'))  # int
+    rooms = float(request.args.get('rooms'))  # int
+    area = float(request.args.get('area'))  # int
+
+    return {"value": value, "rooms": rooms, "area": area}, None
+
+
+def load_properties():
+    df = pd.read_json("app/assets/olx.json", orient="records", convert_dates=False)
+    df = df.drop(["titulo", "link", "descricao", "created_at", "codigo"], axis=1)
+    df = pd.concat([df.drop(["_id", "data_publicacao", "caracteristicas"], axis=1), df['caracteristicas'].apply(pd.Series)], axis=1)
+    df = df.drop(["tipo", "cep", "municipio", "logradouro", "detalhes_do_imovel", "detalhes_do_condominio", "condominio", "iptu"], axis=1)
+    df = df.dropna()
+    df = df.rename({'preco': 'value', 'quartos': 'rooms', 'area_util': 'area'}, axis=1)
+
+    df['value'] = df['value'].apply(lambda x: re.sub('[^0-9]','', x))
+    df['value'] = df['value'].astype(float)
+    df['rooms'] = df['rooms'].apply(lambda x: re.sub('[^0-9]','', x))
+    df['rooms'] = df['rooms'].astype(float)
+    df['area'] = df['area'].apply(lambda x: re.sub('[^0-9]','', x))
+    df['area'] = df['area'].astype(float)
+
+    return df
