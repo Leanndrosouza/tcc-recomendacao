@@ -19,10 +19,46 @@ AVAILABLE_DISTRICTS = ['Jabotiana', 'Atalaia', 'Salgado Filho', 'Lamarão', 'Gra
                        'Cidade Nova', 'Zona de Expansão (Robalo)', '13 De Julho',
                        'Palestina', 'Soledade', 'Japãozinho']
 
-PROPERTIES_DATAFRAME = pd.read_json("app/assets/olx_location.json",
-                                    orient="records", convert_dates=False)
 
-DISTRICT_LOCATIONS_DATAFRAME = pd.read_json('app/assets/districts_location.json')
+DISTRICT_LOCATIONS_DATAFRAME = pd.read_json(
+    'app/assets/districts_location.json')
+
+
+def load_properties():
+    df = pd.read_json("app/assets/olx_location.json",
+                      orient="records", convert_dates=False)
+    df = df.drop(["link", "descricao",
+                 "created_at", "codigo"], axis=1)
+    df = pd.concat([
+        df["_id"].apply(pd.Series),
+        df.drop(["_id", "data_publicacao", "caracteristicas"], axis=1),
+        df['caracteristicas'].apply(pd.Series)
+    ], axis=1)
+    df = df.drop(["tipo", "cep", "municipio", "logradouro", "detalhes_do_imovel",
+                 "detalhes_do_condominio", "condominio", "iptu"], axis=1)
+    df = df.dropna()
+    df = df.rename({
+        '$oid': 'id',
+        'preco': 'value',
+        'quartos': 'rooms',
+        'area_util': 'area',
+        'banheiros': 'bathrooms',
+        'vagas_na_garagem': 'garages',
+        'localizacao': 'location',
+        'bairro': 'district_name',
+    }, axis=1)
+
+    numbers_columns = ['value', 'rooms', 'area', 'bathrooms', 'garages']
+
+    for column in numbers_columns:
+        df[column] = df[column].apply(lambda x: re.sub('[^0-9]', '', x))
+        df[column] = df[column].astype(float)
+
+    return df
+
+
+PROPERTIES_DATAFRAME = load_properties()
+
 
 def mahalanobis_algorithm(df, request_dict, weights_dict):
     # handle data
@@ -135,34 +171,6 @@ def prepare_params(request):
         params["district"] = district
 
     return params, None
-
-
-def load_properties():
-    df = PROPERTIES_DATAFRAME
-    df = df.drop(["link", "descricao",
-                 "created_at", "codigo"], axis=1)
-    df = pd.concat([df.drop(["_id", "data_publicacao", "caracteristicas"],
-                   axis=1), df['caracteristicas'].apply(pd.Series)], axis=1)
-    df = df.drop(["tipo", "cep", "municipio", "logradouro", "detalhes_do_imovel",
-                 "detalhes_do_condominio", "condominio", "iptu"], axis=1)
-    df = df.dropna()
-    df = df.rename({
-        'preco': 'value',
-        'quartos': 'rooms',
-        'area_util': 'area',
-        'banheiros': 'bathrooms',
-        'vagas_na_garagem': 'garages',
-        'localizacao': 'location',
-        'bairro': 'district_name'
-    }, axis=1)
-
-    numbers_columns = ['value', 'rooms', 'area', 'bathrooms', 'garages']
-
-    for column in numbers_columns:
-        df[column] = df[column].apply(lambda x: re.sub('[^0-9]', '', x))
-        df[column] = df[column].astype(float)
-
-    return df
 
 
 def handle_dataframe_values(df, params):

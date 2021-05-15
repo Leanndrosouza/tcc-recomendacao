@@ -1,8 +1,11 @@
 from flask import Flask, request
-from utils import mahalanobis_algorithm, valid_params, prepare_params, load_properties, handle_dataframe_values
+from utils import mahalanobis_algorithm, valid_params, prepare_params, PROPERTIES_DATAFRAME, handle_dataframe_values
+import logging
 
 app = Flask(__name__)
 
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 @app.route('/')
 def hello():
@@ -13,7 +16,7 @@ def hello():
 
     params, error = prepare_params(request)
 
-    df = load_properties()
+    df = PROPERTIES_DATAFRAME
 
     df, params = handle_dataframe_values(df, params)
 
@@ -30,7 +33,25 @@ def hello():
     sorted_values = mahalanobis_algorithm(df, params, weights)
 
     result = {}
-    for index in range(6):
+    for index in range(3):
+        aux = df.iloc[sorted_values.iloc[index].name].to_dict()
+
+        result.update({index: aux})
+        df = df[df.id != aux['id']]
+
+    weights = {
+        'value': [1.0],
+        'rooms': [1.0],
+        'area': [1.0],
+        'bathrooms': [1.0],
+        'garages': [1.0],
+        'district': [3.0],
+        'distance': [3.0]
+    }
+
+    sorted_values = mahalanobis_algorithm(df, params, weights)
+
+    for index in range(3, 6):
         aux = df.iloc[sorted_values.iloc[index].name].to_dict()
 
         result.update({index: aux})
