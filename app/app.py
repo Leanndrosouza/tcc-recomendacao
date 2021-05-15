@@ -1,5 +1,5 @@
 from flask import Flask, request
-from utils import mahalanobis_algorithm, valid_params, prepare_params, load_properties
+from utils import mahalanobis_algorithm, valid_params, prepare_params, load_properties, handle_dataframe_values
 
 app = Flask(__name__)
 
@@ -15,13 +15,16 @@ def hello():
 
     df = load_properties()
 
+    df, params = handle_dataframe_values(df, params)
+
     weights = {
-        'value': [1.0],
+        'value': [3.0],
         'rooms': [1.0],
         'area': [1.0],
         'bathrooms': [1.0],
         'garages': [1.0],
-        'district': [1.0]
+        'district': [1.0],
+        'distance': [1.0]
     }
 
     sorted_values = mahalanobis_algorithm(df, params, weights)

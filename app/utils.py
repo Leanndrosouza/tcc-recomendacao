@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import logging
 import re
+from geopy.distance import geodesic
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -18,6 +19,10 @@ AVAILABLE_DISTRICTS = ['Jabotiana', 'Atalaia', 'Salgado Filho', 'Lamarão', 'Gra
                        'Cidade Nova', 'Zona de Expansão (Robalo)', '13 De Julho',
                        'Palestina', 'Soledade', 'Japãozinho']
 
+PROPERTIES_DATAFRAME = pd.read_json("app/assets/olx_location.json",
+                                    orient="records", convert_dates=False)
+
+DISTRICT_LOCATIONS_DATAFRAME = pd.read_json('app/assets/districts_location.json')
 
 def mahalanobis_algorithm(df, request_dict, weights_dict):
     # handle data
@@ -85,7 +90,7 @@ def valid_params(request):
     if garages:
         if not is_int(garages):
             return 'garages must be a integer'
-    
+
     if district:
         if not district in AVAILABLE_DISTRICTS:
             return 'district invalid'
@@ -133,8 +138,7 @@ def prepare_params(request):
 
 
 def load_properties():
-    df = pd.read_json("app/assets/olx_location.json",
-                      orient="records", convert_dates=False)
+    df = PROPERTIES_DATAFRAME
     df = df.drop(["link", "descricao",
                  "created_at", "codigo"], axis=1)
     df = pd.concat([df.drop(["_id", "data_publicacao", "caracteristicas"],
@@ -147,7 +151,9 @@ def load_properties():
         'quartos': 'rooms',
         'area_util': 'area',
         'banheiros': 'bathrooms',
-        'vagas_na_garagem': 'garages'
+        'vagas_na_garagem': 'garages',
+        'localizacao': 'location',
+        'bairro': 'district_name'
     }, axis=1)
 
     numbers_columns = ['value', 'rooms', 'area', 'bathrooms', 'garages']
@@ -157,3 +163,32 @@ def load_properties():
         df[column] = df[column].astype(float)
 
     return df
+
+
+def handle_dataframe_values(df, params):
+    if not 'district' in params.keys():
+        return df, params
+
+    locations = DISTRICT_LOCATIONS_DATAFRAME
+
+    location = locations[params['district']]
+
+    df['distance'] = df.apply(lambda row: calculate_distance(
+        location['lat'],
+        location['lng'],
+        row['location']['lat'],
+        row['location']['lng']
+    ), axis=1)
+
+    df['district'] = df['district_name'].apply(
+        lambda x: float(x == params['district'])
+    )
+
+    params['district'] = 1.0
+    params['distance'] = 0.0
+
+    return df, params
+
+
+def calculate_distance(lat1, lng1, lat2, lng2):
+    return geodesic((lat1, lng1), (lat2, lng2)).km
