@@ -25,7 +25,7 @@ DISTRICT_LOCATIONS_DATAFRAME = pd.read_json(
 
 
 def load_properties():
-    df = pd.read_json("app/assets/olx_location.json",
+    df = pd.read_json("app/assets/olx_location_cep.json",
                       orient="records", convert_dates=False)
     df = df.drop(["link", "descricao",
                  "created_at", "codigo"], axis=1)

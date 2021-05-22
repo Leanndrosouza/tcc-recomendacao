@@ -21,13 +21,13 @@ def hello():
     df, params = handle_dataframe_values(df, params)
 
     weights = {
-        'value': [3.0],
-        'rooms': [1.0],
-        'area': [1.0],
-        'bathrooms': [1.0],
-        'garages': [1.0],
-        'district': [1.0],
-        'distance': [1.0]
+        'value': [30.0],
+        'rooms': [10.0],
+        'area': [10.0],
+        'bathrooms': [10.0],
+        'garages': [10.0],
+        'district': [10.0],
+        'distance': [10.0]
     }
 
     sorted_values = mahalanobis_algorithm(df, params, weights)
@@ -35,24 +35,28 @@ def hello():
     result = {}
     for index in range(3):
         aux = df.iloc[sorted_values.iloc[index].name].to_dict()
+        aux['similarity'] = sorted_values.iloc[index][0]
+        aux['similarity_index'] = int(sorted_values.iloc[index].name)
 
         result.update({index: aux})
         df = df[df.id != aux['id']]
 
     weights = {
-        'value': [1.0],
-        'rooms': [1.0],
-        'area': [1.0],
-        'bathrooms': [1.0],
-        'garages': [1.0],
-        'district': [3.0],
-        'distance': [3.0]
+        'value': [10.0],
+        'rooms': [10.0],
+        'area': [10.0],
+        'bathrooms': [10.0],
+        'garages': [10.0],
+        'district': [30.0],
+        'distance': [30.0]
     }
 
     sorted_values = mahalanobis_algorithm(df, params, weights)
 
     for index in range(3, 6):
         aux = df.iloc[sorted_values.iloc[index].name].to_dict()
+        aux['similarity'] = sorted_values.iloc[index][0]
+        aux['similarity_index'] = int(sorted_values.iloc[index].name)
 
         result.update({index: aux})
 
