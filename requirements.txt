@@ -1,5 +1,5 @@
 Flask
 pandas
 numpy
-logging
+jupyterlab
 geopy

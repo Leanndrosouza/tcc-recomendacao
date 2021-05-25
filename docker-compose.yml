@@ -1,0 +1,23 @@
+version: '3'
+services:
+  notebooks:
+    container_name: tcc_notebooks
+    build: 
+      context: .
+      dockerfile: ./Dockerfile.notebook
+    command: jupyter lab --ip='0.0.0.0' --port=8888 --allow-root
+    volumes:
+      - ./notebooks:/app
+    ports:
+      - "8888:8888"
+
+  api:
+    container_name: tcc_recomendacao
+    build: .
+    command: python app/app.py
+    restart: unless-stopped
+    volumes:
+      - .:/app
+      - /app/notebooks
+    ports:
+      - "5000:5000"
