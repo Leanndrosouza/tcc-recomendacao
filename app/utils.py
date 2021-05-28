@@ -25,7 +25,7 @@ DISTRICT_LOCATIONS_DATAFRAME = pd.read_json(
 
 
 def load_properties():
-    df = pd.read_json("app/assets/olx_location_cep.json",
+    df = pd.read_json("app/assets/olx_location_cep_price.json",
                       orient="records", convert_dates=False)
     df = df.drop(["link", "descricao",
                  "created_at", "codigo"], axis=1)
@@ -46,6 +46,7 @@ def load_properties():
         'vagas_na_garagem': 'garages',
         'localizacao': 'location',
         'bairro': 'district_name',
+        'previsao': 'price_suggested'
     }, axis=1)
 
     numbers_columns = ['value', 'rooms', 'area', 'bathrooms', 'garages']
@@ -53,6 +54,8 @@ def load_properties():
     for column in numbers_columns:
         df[column] = df[column].apply(lambda x: re.sub('[^0-9]', '', x))
         df[column] = df[column].astype(float)
+    
+    df['price_suggested'] = df['price_suggested'].astype(float)
 
     return df
 

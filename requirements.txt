@@ -3,3 +3,9 @@ pandas
 numpy
 jupyterlab
 geopy
+matplotlib
+sklearn
+seaborn
+category_encoders
+lightgbm
+joblib
