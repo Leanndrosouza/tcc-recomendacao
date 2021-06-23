@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import logging
 import re
+from geopy.distance import geodesic
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -71,27 +72,94 @@ def is_int(x):
         return False
 
 
-def prepare_params(request):
-    value = float(request.args.get('value'))  # int
-    rooms = float(request.args.get('rooms'))  # int
-    area = float(request.args.get('area'))  # int
+def prepare_params(args):
+    value = float(args.get('value'))  # int
+    rooms = float(args.get('rooms'))  # int
+    area = float(args.get('area'))  # int
 
-    return {"value": value, "rooms": rooms, "area": area}, None
+    params = {
+        "value": value,
+        "rooms": rooms,
+        "area": area
+    }
+
+    # OPTIONAL
+
+    bathrooms = args.get('bathrooms')
+    garages = args.get('garages')
+    district = args.get('district')
+
+    if bathrooms:
+        bathrooms = float(bathrooms)
+        params["bathrooms"] = bathrooms
+
+    if garages:
+        garages = float(garages)
+        params["garages"] = garages
+
+    if district:
+        params["district"] = district
+
+    return params, None
 
 
 def load_properties():
-    df = pd.read_json("app/assets/olx.json", orient="records", convert_dates=False)
-    df = df.drop(["titulo", "link", "descricao", "created_at", "codigo"], axis=1)
-    df = pd.concat([df.drop(["_id", "data_publicacao", "caracteristicas"], axis=1), df['caracteristicas'].apply(pd.Series)], axis=1)
-    df = df.drop(["tipo", "cep", "municipio", "logradouro", "detalhes_do_imovel", "detalhes_do_condominio", "condominio", "iptu"], axis=1)
+    df = pd.read_json("assets/olx_location_cep_price.json", orient="records", convert_dates=False)
+    df = df.drop(["link", "descricao",
+                 "created_at", "codigo", "titulo"], axis=1)
+    df = pd.concat([
+        df["_id"].apply(pd.Series),
+        df.drop(["_id", "data_publicacao", "caracteristicas"], axis=1),
+        df['caracteristicas'].apply(pd.Series)
+    ], axis=1)
+    df = df.drop(["tipo", "cep", "municipio", "logradouro", "detalhes_do_imovel",
+                 "detalhes_do_condominio", "condominio", "iptu"], axis=1)
     df = df.dropna()
-    df = df.rename({'preco': 'value', 'quartos': 'rooms', 'area_util': 'area'}, axis=1)
+    df = df.rename({
+        '$oid': 'id',
+        'preco': 'value',
+        'quartos': 'rooms',
+        'area_util': 'area',
+        'banheiros': 'bathrooms',
+        'vagas_na_garagem': 'garages',
+        'localizacao': 'location',
+        'bairro': 'district_name',
+        'previsao': 'price_suggested'
+    }, axis=1)
 
-    df['value'] = df['value'].apply(lambda x: re.sub('[^0-9]','', x))
-    df['value'] = df['value'].astype(float)
-    df['rooms'] = df['rooms'].apply(lambda x: re.sub('[^0-9]','', x))
-    df['rooms'] = df['rooms'].astype(float)
-    df['area'] = df['area'].apply(lambda x: re.sub('[^0-9]','', x))
-    df['area'] = df['area'].astype(float)
+    numbers_columns = ['value', 'rooms', 'area', 'bathrooms', 'garages']
+
+    for column in numbers_columns:
+        df[column] = df[column].apply(lambda x: re.sub('[^0-9]', '', x))
+        df[column] = df[column].astype(float)
+    
+    df['price_suggested'] = df['price_suggested'].astype(float)
 
     return df
+
+def handle_dataframe_values(df, params):
+    if not 'district' in params.keys():
+        return df, params
+
+    locations = pd.read_json('assets/districts_location.json')
+
+    location = locations[params['district']]
+
+    df['distance'] = df.apply(lambda row: calculate_distance(
+        location['lat'],
+        location['lng'],
+        row['location']['lat'],
+        row['location']['lng']
+    ), axis=1)
+
+    df['district'] = df['district_name'].apply(
+        lambda x: float(x == params['district'])
+    )
+
+    params['district'] = 1.0
+    params['distance'] = 0.0
+
+    return df, params
+
+def calculate_distance(lat1, lng1, lat2, lng2):
+    return geodesic((lat1, lng1), (lat2, lng2)).km
