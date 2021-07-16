@@ -7,14 +7,20 @@ app = Flask(__name__)
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
+def error_response(message, code):
+    return {"error": message}, code
+
 @app.route('/')
 def hello():
     error = valid_params(request)
 
     if error != None:
-        return error, 404
+        return error_response(error, 400)
 
     params, error = prepare_params(request)
+
+    if error != None:
+        return error_response(error, 400)
 
     df = PROPERTIES_DATAFRAME
 
@@ -64,5 +70,5 @@ def hello():
 
 
 if __name__ == '__main__':
-    app.run(debug=True, host="127.0.0.1")
-    # app.run(debug=True, host="0.0.0.0")
+    # app.run(debug=True, host="127.0.0.1")
+    app.run(debug=True, host="0.0.0.0")

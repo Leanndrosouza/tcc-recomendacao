@@ -93,34 +93,35 @@ def mahalanobis_algorithm(df, request_dict, weights_dict):
     return sorted_values
 
 
+# 'valor': [30.0],
+# 'quartos': [10.0],
+# 'area': [10.0],
+# 'banheiros': [10.0],
+# 'garagens': [10.0],
+# 'bairro': [10.0],
+# 'distance': [10.0]
 def valid_params(request):
-    value = request.args.get('value')
-    rooms = request.args.get('rooms')
-    area = request.args.get('area')
-
-    if not value:
-        return 'value is a required field'
-
-    if not is_int(value):
-        return 'value must be a integer'
-
-    if not rooms:
-        return 'rooms is a required field'
-
-    if not is_int(rooms):
-        return 'rooms must be a integer'
-
-    if not area:
-        return 'area is a required field'
-
-    if not is_int(area):
-        return 'area must be a integer'
-
     # OPTIONAL PARAMS
+    value = request.args.get('valor')
+    rooms = request.args.get('quartos')
+    area = request.args.get('area')
+    bathrooms = request.args.get('banheiros')
+    garages = request.args.get('garagens')
+    district = request.args.get('bairro')
+    latitude = request.args.get('latitude')
+    longitude = request.args.get('longitude')
 
-    bathrooms = request.args.get('bathrooms')
-    garages = request.args.get('garages')
-    district = request.args.get('district')
+    if value:
+        if not is_int(value):
+            return 'value must be a integer'
+
+    if rooms:
+        if not is_int(rooms):
+            return 'rooms must be a integer'
+
+    if area:
+        if not is_int(area):
+            return 'area must be a integer'
 
     if bathrooms:
         if not is_int(bathrooms):
@@ -134,6 +135,12 @@ def valid_params(request):
         if not district in AVAILABLE_DISTRICTS:
             return 'district invalid'
 
+    if latitude and longitude:
+        if not is_float(latitude):
+            return 'latitude invalid'
+        if not is_float(longitude):
+            return 'longitude invalid'
+
     return None
 
 
@@ -144,23 +151,35 @@ def is_int(x):
     except:
         return False
 
+def is_float(x):
+    try:
+        float(x)
+        return True
+    except:
+        return False
+
 
 def prepare_params(request):
-    value = float(request.args.get('value'))  # int
-    rooms = float(request.args.get('rooms'))  # int
-    area = float(request.args.get('area'))  # int
+    params = {}
 
-    params = {
-        "value": value,
-        "rooms": rooms,
-        "area": area
-    }
+    value = request.args.get('valor')
+    rooms = request.args.get('quartos')
+    area = request.args.get('area')
+    bathrooms = request.args.get('banheiros')
+    garages = request.args.get('garagens')
+    district = request.args.get('bairro')
 
-    # OPTIONAL
+    if value:
+        value = float(value)
+        params["value"] = value
 
-    bathrooms = request.args.get('bathrooms')
-    garages = request.args.get('garages')
-    district = request.args.get('district')
+    if rooms:
+        rooms = float(rooms)
+        params["garages"] = rooms
+
+    if area:
+        area = float(area)
+        params["area"] = area
 
     if bathrooms:
         bathrooms = float(bathrooms)
@@ -172,6 +191,9 @@ def prepare_params(request):
 
     if district:
         params["district"] = district
+
+    if len(params) < 2:
+        return None, "you must provide at least two features"
 
     return params, None
 
