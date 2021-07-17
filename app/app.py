@@ -1,5 +1,5 @@
-from flask import Flask, request
-from utils import mahalanobis_algorithm, valid_params, prepare_params, PROPERTIES_DATAFRAME, handle_dataframe_values
+from flask import Flask, request, jsonify
+from utils import mahalanobis_algorithm, valid_params, prepare_params, PROPERTIES_DATAFRAME, handle_dataframe_values, convert_to_output, AVAILABLE_DISTRICTS
 import logging
 
 app = Flask(__name__)
@@ -10,7 +10,12 @@ logger = logging.getLogger(__name__)
 def error_response(message, code):
     return {"error": message}, code
 
-@app.route('/')
+
+@app.route('/api/v1/bairros')
+def bairros():
+    return jsonify({'bairros_disponiveis': AVAILABLE_DISTRICTS})
+
+@app.route('/api/v1/recomendacao')
 def hello():
     error = valid_params(request)
 
@@ -44,7 +49,7 @@ def hello():
         aux['similarity'] = sorted_values.iloc[index][0]
         aux['similarity_index'] = int(sorted_values.iloc[index].name)
 
-        result.update({index: aux})
+        result.update({index: convert_to_output(aux)})
         df = df[df.id != aux['id']]
 
     weights = {
@@ -64,7 +69,7 @@ def hello():
         aux['similarity'] = sorted_values.iloc[index][0]
         aux['similarity_index'] = int(sorted_values.iloc[index].name)
 
-        result.update({index: aux})
+        result.update({index: convert_to_output(aux)})
 
     return result
 

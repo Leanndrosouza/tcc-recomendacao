@@ -225,3 +225,23 @@ def handle_dataframe_values(df, params):
 
 def calculate_distance(lat1, lng1, lat2, lng2):
     return geodesic((lat1, lng1), (lat2, lng2)).km
+
+def convert_to_output(dict):
+    dict = rename_key(dict, "banheiros", "bathrooms")
+    dict = rename_key(dict, "bairro", "district_name")
+    dict = rename_key(dict, "preco_estimado", "price_suggested")
+    dict = rename_key(dict, "similaridade", "similarity")
+    dict = rename_key(dict, "valor", "value")
+    dict = rename_key(dict, "quartos", "rooms")
+    if 'distancia' in dict.keys():
+        dict = rename_key(dict, "distancia", "distance")
+
+    dict.pop("categoria")
+    dict.pop("location")
+    dict.pop("similarity_index")
+
+    return dict
+
+def rename_key(dict, n, o):
+    dict[n] = dict.pop(o)
+    return dict
