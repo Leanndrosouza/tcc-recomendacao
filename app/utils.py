@@ -23,9 +23,39 @@ AVAILABLE_DISTRICTS = ['Jabotiana', 'Atalaia', 'Salgado Filho', 'Lamarão', 'Gra
 DISTRICT_LOCATIONS_DATAFRAME = pd.read_json(
     'app/assets/districts_location.json')
 
+VALID_POINTS = ['point_of_interest',
+ 'establishment',
+ 'store',
+ 'political',
+ 'food',
+ 'health',
+ 'clothing_store',
+ 'sublocality_level_1',
+ 'sublocality',
+ 'locality',
+ 'finance',
+ 'restaurant',
+ 'home_goods_store',
+ 'general_contractor',
+ 'lodging',
+ 'place_of_worship',
+ 'church',
+ 'electronics_store',
+ 'school',
+ 'beauty_salon']
+
+def conta_estabelecimentos(pontos_proximos):
+    pontos_validos = {}
+    for ponto in pontos_proximos:
+        if 'types' in ponto:
+            for tp in ponto['types']:
+                if tp in VALID_POINTS:
+                    pontos_validos[tp] = True
+    return len(pontos_validos)
+
 
 def load_properties():
-    df = pd.read_json("app/assets/olx_location_cep_price.json",
+    df = pd.read_json("app/assets/olx_location_cep_nearby.json",
                       orient="records", convert_dates=False)
     df = df.drop(["link", "descricao",
                  "created_at", "codigo"], axis=1)
@@ -36,7 +66,6 @@ def load_properties():
     ], axis=1)
     df = df.drop(["tipo", "cep", "municipio", "logradouro", "detalhes_do_imovel",
                  "detalhes_do_condominio", "condominio", "iptu"], axis=1)
-    df = df.dropna()
     df = df.rename({
         '$oid': 'id',
         'preco': 'value',
@@ -49,13 +78,21 @@ def load_properties():
         'previsao': 'price_suggested'
     }, axis=1)
 
-    numbers_columns = ['value', 'rooms', 'area', 'bathrooms', 'garages']
+    df["nearby_locations"] = df["nearby_locations"].apply(conta_estabelecimentos)
+
+    numbers_columns = ['value', 'rooms', 'area', 'bathrooms', 'garages', 'nearby_locations']
 
     for column in numbers_columns:
-        df[column] = df[column].apply(lambda x: re.sub('[^0-9]', '', x))
+        df[column] = df[column].apply(str).apply(lambda x: re.sub('[^0-9]', '', x))
+        df[column] = df[column].apply(lambda x: 0 if x == '' else x).astype(float)
         df[column] = df[column].astype(float)
     
     df['price_suggested'] = df['price_suggested'].astype(float)
+
+    df['value'] = df['value'].apply(lambda x: x*1000 if x < 1000 else x)
+    df['value'] = df['value'].apply(lambda x: x/1000 if x > 50000000 else x)
+
+    df = df.replace(to_replace=0.0, value=df.median(), method='ffill')
 
     return df
 
@@ -233,8 +270,13 @@ def convert_to_output(dict):
     dict = rename_key(dict, "similaridade", "similarity")
     dict = rename_key(dict, "valor", "value")
     dict = rename_key(dict, "quartos", "rooms")
-    if 'distancia' in dict.keys():
+    dict = rename_key(dict, "garagens", "garages")
+    dict = rename_key(dict, "locais_proximos", "nearby_locations")
+    if 'distance' in dict.keys():
         dict = rename_key(dict, "distancia", "distance")
+    
+    if 'district' in dict.keys():
+        dict.pop("district")
 
     dict.pop("categoria")
     dict.pop("location")
