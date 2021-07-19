@@ -205,6 +205,8 @@ def prepare_params(request):
     bathrooms = request.args.get('banheiros')
     garages = request.args.get('garagens')
     district = request.args.get('bairro')
+    latitude = request.args.get('latitude')
+    longitude = request.args.get('longitude')
 
     if value:
         value = float(value)
@@ -228,6 +230,9 @@ def prepare_params(request):
 
     if district:
         params["district"] = district
+    
+    if latitude and longitude:
+        params["location"] = {'lat': latitude, 'lng': longitude}
 
     if len(params) < 2:
         return None, "you must provide at least two features"
@@ -236,27 +241,43 @@ def prepare_params(request):
 
 
 def handle_dataframe_values(df, params):
-    if not 'district' in params.keys():
+    if 'location' in params.keys():
+        location = params['location']
+        df['distance'] = df.apply(lambda row: calculate_distance(
+            location['lat'],
+            location['lng'],
+            row['location']['lat'],
+            row['location']['lng']
+        ), axis=1)
+        
+        params['distance'] = 0.0
+        params.pop("location")
+        if 'district' in params.keys():
+            params.pop("district")
+        
         return df, params
+    
+    if 'district' in params.keys():
+        locations = pd.read_json('app/assets/districts_location.json')
 
-    locations = DISTRICT_LOCATIONS_DATAFRAME
+        location = locations[params['district']]
 
-    location = locations[params['district']]
+        df['distance'] = df.apply(lambda row: calculate_distance(
+            location['lat'],
+            location['lng'],
+            row['location']['lat'],
+            row['location']['lng']
+        ), axis=1)
 
-    df['distance'] = df.apply(lambda row: calculate_distance(
-        location['lat'],
-        location['lng'],
-        row['location']['lat'],
-        row['location']['lng']
-    ), axis=1)
+        df['district'] = df['district_name'].apply(
+            lambda x: float(x == params['district'])
+        )
 
-    df['district'] = df['district_name'].apply(
-        lambda x: float(x == params['district'])
-    )
+        params['district'] = 1.0
+        params['distance'] = 0.0
 
-    params['district'] = 1.0
-    params['distance'] = 0.0
-
+        return df, params
+    
     return df, params
 
 
@@ -281,6 +302,7 @@ def convert_to_output(dict):
     dict.pop("categoria")
     dict.pop("location")
     dict.pop("similarity_index")
+    dict.pop("titulo")
 
     return dict
 

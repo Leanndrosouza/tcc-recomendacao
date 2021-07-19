@@ -7,6 +7,17 @@ from geopy.distance import geodesic
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
+AVAILABLE_DISTRICTS = ['Jabotiana', 'Atalaia', 'Salgado Filho', 'Lamarão', 'Grageru',
+                       'Luzia', 'Jardins', 'Farolândia', 'Coroa do Meio', 'Ponto Novo',
+                       'Suíssa', 'Centro', 'São Conrado', 'Inácio Barbosa', 'São José',
+                       'Zona de Expansão (Mosqueiro)', 'Treze de Julho',
+                       'Dezoito do Forte', 'Aeroporto', 'Zona de Expansão (Aruana)',
+                       'Siqueira Campos', 'Pereira Lobo', 'Jardim Centenário',
+                       'Santa Maria', 'Dom Luciano', 'Olaria', 'Santos Dumont', 'América',
+                       'Santo Antônio', 'Getúlio Vargas', 'Cirurgia', 'Industrial',
+                       "Porto D'Antas", '18 do Forte', 'José Conrado de Araújo',
+                       'Cidade Nova', 'Zona de Expansão (Robalo)', '13 De Julho',
+                       'Palestina', 'Soledade', 'Japãozinho']
 
 def mahalanobis_algorithm(df, request_dict, weights_dict):
     # handle data
@@ -38,28 +49,46 @@ def mahalanobis_algorithm(df, request_dict, weights_dict):
     return sorted_values
 
 
-def valid_params(args):
-    value = args.get('value')
-    rooms = args.get('rooms')
-    area = args.get('area')
+def valid_params(request):
+    # OPTIONAL PARAMS
+    value = request.get('valor')
+    rooms = request.get('quartos')
+    area = request.get('area')
+    bathrooms = request.get('banheiros')
+    garages = request.get('garagens')
+    district = request.get('bairro')
+    latitude = request.get('latitude')
+    longitude = request.get('longitude')
 
-    if not value:
-        return 'value is a required field'
+    if value:
+        if not is_int(value):
+            return 'value must be a integer'
 
-    if not is_int(value):
-        return 'value must be a integer'
+    if rooms:
+        if not is_int(rooms):
+            return 'rooms must be a integer'
 
-    if not rooms:
-        return 'rooms is a required field'
+    if area:
+        if not is_int(area):
+            return 'area must be a integer'
 
-    if not is_int(rooms):
-        return 'rooms must be a integer'
+    if bathrooms:
+        if not is_int(bathrooms):
+            return 'bathrooms must be a integer'
 
-    if not area:
-        return 'area is a required field'
+    if garages:
+        if not is_int(garages):
+            return 'garages must be a integer'
 
-    if not is_int(area):
-        return 'area must be a integer'
+    if district:
+        if not district in AVAILABLE_DISTRICTS:
+            return 'district invalid'
+
+    if latitude and longitude:
+        if not is_float(latitude):
+            return 'latitude invalid'
+        if not is_float(longitude):
+            return 'longitude invalid'
 
     return None
 
@@ -71,23 +100,38 @@ def is_int(x):
     except:
         return False
 
+    
+def is_float(x):
+    try:
+        float(x)
+        return True
+    except:
+        return False
+    
 
-def prepare_params(args):
-    value = float(args.get('value'))  # int
-    rooms = float(args.get('rooms'))  # int
-    area = float(args.get('area'))  # int
+def prepare_params(request):
+    params = {}
 
-    params = {
-        "value": value,
-        "rooms": rooms,
-        "area": area
-    }
+    value = request.get('valor')
+    rooms = request.get('quartos')
+    area = request.get('area')
+    bathrooms = request.get('banheiros')
+    garages = request.get('garagens')
+    district = request.get('bairro')
+    latitude = request.get('latitude')
+    longitude = request.get('longitude')
 
-    # OPTIONAL
+    if value:
+        value = float(value)
+        params["value"] = value
 
-    bathrooms = args.get('bathrooms')
-    garages = args.get('garages')
-    district = args.get('district')
+    if rooms:
+        rooms = float(rooms)
+        params["garages"] = rooms
+
+    if area:
+        area = float(area)
+        params["area"] = area
 
     if bathrooms:
         bathrooms = float(bathrooms)
@@ -99,6 +143,12 @@ def prepare_params(args):
 
     if district:
         params["district"] = district
+    
+    if latitude and longitude:
+        params["location"] = {'lat': latitude, 'lng': longitude}
+
+    if len(params) < 2:
+        return None, "you must provide at least two features"
 
     return params, None
 
@@ -155,27 +205,43 @@ def load_properties():
     return df
 
 def handle_dataframe_values(df, params):
-    if not 'district' in params.keys():
+    if 'location' in params.keys():
+        location = params['location']
+        df['distance'] = df.apply(lambda row: calculate_distance(
+            location['lat'],
+            location['lng'],
+            row['location']['lat'],
+            row['location']['lng']
+        ), axis=1)
+        
+        params['distance'] = 0.0
+        params.pop("location")
+        if 'district' in params.keys():
+            params.pop("district")
+        
         return df, params
+    
+    if 'district' in params.keys():
+        locations = pd.read_json('assets/districts_location.json')
 
-    locations = pd.read_json('assets/districts_location.json')
+        location = locations[params['district']]
 
-    location = locations[params['district']]
+        df['distance'] = df.apply(lambda row: calculate_distance(
+            location['lat'],
+            location['lng'],
+            row['location']['lat'],
+            row['location']['lng']
+        ), axis=1)
 
-    df['distance'] = df.apply(lambda row: calculate_distance(
-        location['lat'],
-        location['lng'],
-        row['location']['lat'],
-        row['location']['lng']
-    ), axis=1)
+        df['district'] = df['district_name'].apply(
+            lambda x: float(x == params['district'])
+        )
 
-    df['district'] = df['district_name'].apply(
-        lambda x: float(x == params['district'])
-    )
+        params['district'] = 1.0
+        params['distance'] = 0.0
 
-    params['district'] = 1.0
-    params['distance'] = 0.0
-
+        return df, params
+    
     return df, params
 
 def calculate_distance(lat1, lng1, lat2, lng2):
